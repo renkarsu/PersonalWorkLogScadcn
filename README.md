@@ -1,3 +1,8 @@
+# 使い方
+
+1. npm installコマンドを打つ
+2. npm run devコマンドを打つ
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
