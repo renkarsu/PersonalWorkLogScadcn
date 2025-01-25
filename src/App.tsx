@@ -237,6 +237,10 @@ const barOptions = {
   },
 }
 
+const calculateTotalTime = (data) => {
+  return data.reduce((total, row) => total + parseFloat(row.elapsedTime), 0).toFixed(2)
+}
+
 function App() {
   const [data, setData] = useState(sampleData)
   const [filteredData, setFilteredData] = useState(sampleData)
@@ -355,10 +359,14 @@ function App() {
     }))
   }
 
+  const totalProjectTime = calculateTotalTime(filteredData)
+  const totalTaskTime = calculateTotalTime(filteredData.filter(row => row.project === selectedProject))
+  const totalSubtaskTime = calculateTotalTime(filteredData.filter(row => row.task === selectedTask))
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <header className="mb-4">
-        <h1 className="text-2xl font-bold">BI Dashboard</h1>
+        <h1 className="text-2xl font-bold text-black">個人業務可視化ツール</h1>
       </header>
       <Card className="mb-4">
         <CardHeader>
@@ -417,6 +425,7 @@ function App() {
           <CardContent>
             <div className="mb-4" style={{ height: '20px' }}></div> {/* Placeholder */}
             <Pie data={pieDataProject} options={pieOptions} />
+            <div className="mt-4 text-center font-semibold">Total Time: {totalProjectTime} hours</div>
           </CardContent>
         </Card>
         <Card>
@@ -440,6 +449,7 @@ function App() {
               </SelectContent>
             </Select>
             <Pie data={pieDataA} options={pieOptions} />
+            <div className="mt-4 text-center font-semibold">Total Time: {totalTaskTime} hours</div>
           </CardContent>
         </Card>
         <Card>
@@ -463,6 +473,7 @@ function App() {
               </SelectContent>
             </Select>
             <Pie data={pieDataB} options={pieOptions} />
+            <div className="mt-4 text-center font-semibold">Total Time: {totalSubtaskTime} hours</div>
           </CardContent>
         </Card>
         <Card className="col-span-1 md:col-span-2 lg:col-span-3">
@@ -484,7 +495,9 @@ function App() {
                   <SelectItem value="subtask">Subtask</SelectItem>
                 </SelectContent>
               </Select>
-              <Bar data={barData} options={barOptions} />
+              <div style={{ height: '30vh' }}>
+                <Bar data={barData} options={barOptions} />
+              </div>
             </CardContent>
           )}
         </Card>
