@@ -5,34 +5,38 @@ import { Select, SelectTrigger, SelectContent, SelectItem } from '@/components/u
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useState, useEffect } from 'react'
-import { Pie } from 'react-chartjs-2'
+import { Pie, Bar } from 'react-chartjs-2'
 import { Tree, TreeNode } from 'react-organizational-chart'
 import {
   Chart as ChartJS,
   ArcElement,
+  BarElement,
   Tooltip,
   Legend,
+  CategoryScale,
+  LinearScale,
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import * as XLSX from 'xlsx'
 import { format, addDays, isValid } from 'date-fns'
 import { Calendar as CalendarIcon, Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DateRange } from 'react-day-picker'
 
-ChartJS.register(ArcElement, Tooltip, Legend)
+ChartJS.register(ArcElement, BarElement, Tooltip, Legend, CategoryScale, LinearScale, ChartDataLabels)
 
 // Sample data for the table
 const sampleData = [
-  { date: '2023-01-01', task: 'Task A', subcategory: 'Sub A', elapsedTime: 1.5, outcome: 'Result A' },
-  { date: '2023-01-02', task: 'Task B', subcategory: 'Sub A', elapsedTime: 2.0, outcome: 'Result B' },
-  { date: '2023-01-03', task: 'Task C', subcategory: 'Sub A', elapsedTime: 3.0, outcome: 'Result C' },
-  { date: '2023-01-04', task: 'Task A', subcategory: 'Sub C', elapsedTime: 1.5, outcome: 'Result A' },
-  { date: '2023-01-05', task: 'Task B', subcategory: 'Sub B', elapsedTime: 2.0, outcome: 'Result B' },
-  { date: '2023-01-06', task: 'Task C', subcategory: 'Sub B', elapsedTime: 3.0, outcome: 'Result C' },
-  { date: '2023-01-07', task: 'Task A', subcategory: 'Sub A', elapsedTime: 1.5, outcome: 'Result A' },
-  { date: '2023-01-08', task: 'Task B', subcategory: 'Sub C', elapsedTime: 2.0, outcome: 'Result B' },
-  { date: '2023-01-09', task: 'Task C', subcategory: 'Sub B', elapsedTime: 3.0, outcome: 'Result C' },
-  { date: '2023-01-10', task: 'Task A', subcategory: 'Sub A', elapsedTime: 1.5, outcome: 'Result A' },
+  { date: '2023-01-01', project: 'Project A', task: 'Task A', subtask: 'Sub A', plan: 'Plan A', elapsedTime: 1.5, progress: '50%' },
+  { date: '2023-01-02', project: 'Project A', task: 'Task B', subtask: 'Sub A', plan: 'Plan B', elapsedTime: 2.0, progress: '60%' },
+  { date: '2023-01-03', project: 'Project C', task: 'Task C', subtask: 'Sub A', plan: 'Plan C', elapsedTime: 3.0, progress: '70%' },
+  { date: '2023-01-04', project: 'Project A', task: 'Task A', subtask: 'Sub C', plan: 'Plan A', elapsedTime: 1.5, progress: '80%' },
+  { date: '2023-01-05', project: 'Project B', task: 'Task B', subtask: 'Sub B', plan: 'Plan B', elapsedTime: 2.0, progress: '90%' },
+  { date: '2023-01-06', project: 'Project C', task: 'Task C', subtask: 'Sub B', plan: 'Plan C', elapsedTime: 3.0, progress: '100%' },
+  { date: '2023-01-07', project: 'Project A', task: 'Task A', subtask: 'Sub A', plan: 'Plan A', elapsedTime: 1.5, progress: '50%' },
+  { date: '2023-01-08', project: 'Project B', task: 'Task B', subtask: 'Sub C', plan: 'Plan B', elapsedTime: 2.0, progress: '60%' },
+  { date: '2023-01-09', project: 'Project A', task: 'Task C', subtask: 'Sub B', plan: 'Plan C', elapsedTime: 3.0, progress: '70%' },
+  { date: '2023-01-10', project: 'Project A', task: 'Task A', subtask: 'Sub A', plan: 'Plan A', elapsedTime: 1.5, progress: '80%' },
 ]
 
 // Convert Excel serial date to JavaScript Date object
@@ -55,39 +59,37 @@ const convertExcelDate = (serial) => {
   return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds)
 }
 
-// Convert Excel serial time to minutes
+// Convert Excel serial time to hours
 const convertExcelTime = (serial) => {
-  return Math.round(serial * 24 * 60)
-}
-
-// Function to generate a list of eye-friendly colors
-const generateColors = (numColors) => {
-  const colors = []
-  for (let i = 0; i < numColors; i++) {
-    const hue = (i * 360 / numColors) % 360
-    const saturation = 70 + (i % 2) * 10 // alternating saturation for variety
-    const lightness = 70 - (i % 2) * 10 // alternating lightness for variety
-    colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`)
-  }
-  return colors
+  return (serial * 24).toFixed(2)
 }
 
 // Prepare data for Pie Chart A
-const preparePieDataA = (data) => {
-  const taskTimes = data.reduce((acc, row) => {
-    acc[row.task] = (acc[row.task] || 0) + row.elapsedTime
-    return acc
-  }, {})
+const preparePieDataA = (data, selectedProject) => {
+  const taskTimes = data
+    .filter(row => row.project === selectedProject)
+    .reduce((acc, row) => {
+      acc[row.task] = (acc[row.task] || 0) + parseFloat(row.elapsedTime)
+      return acc
+    }, {})
 
   const sortedTaskTimes = Object.entries(taskTimes).sort((a, b) => b[1] - a[1])
-  const colors = generateColors(sortedTaskTimes.length)
+
+  const colors = sortedTaskTimes.length <= 6
+    ? ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+    : [
+        '#FF6384', '#FF33A2', '#FF008C', '#FF5733', '#FF8C00', '#FFD700', 
+        '#FFCE56', '#8CFF00', '#33FF57', '#00FF8C', '#4BC0C0', '#00D7FF', 
+        '#36A2EB', '#3357FF', '#008CFF', '#9966FF', '#A233FF', '#8C00FF', 
+        '#33FFA2', '#FF9F40'
+      ]
 
   return {
     labels: sortedTaskTimes.map(([task]) => task),
     datasets: [
       {
         data: sortedTaskTimes.map(([, time]) => time),
-        backgroundColor: colors,
+        backgroundColor: colors.slice(0, sortedTaskTimes.length),
       },
     ],
   }
@@ -98,19 +100,85 @@ const preparePieDataB = (data, selectedTask) => {
   const subcategoryTimes = data
     .filter(row => row.task === selectedTask)
     .reduce((acc, row) => {
-      acc[row.subcategory] = (acc[row.subcategory] || 0) + row.elapsedTime
+      acc[row.subtask] = (acc[row.subtask] || 0) + parseFloat(row.elapsedTime)
       return acc
     }, {})
 
   const sortedSubcategoryTimes = Object.entries(subcategoryTimes).sort((a, b) => b[1] - a[1])
-  const colors = generateColors(sortedSubcategoryTimes.length)
+
+  const colors = sortedSubcategoryTimes.length <= 6
+    ? ['#4BC0C0', '#9966FF', '#FF9F40', '#FF6384', '#36A2EB', '#FFCE56']
+    : [
+        '#4BC0C0', '#00D7FF', '#36A2EB', '#3357FF', '#008CFF', '#9966FF', 
+        '#A233FF', '#8C00FF', '#33FFA2', '#FF9F40', '#FF6384', '#FF33A2', 
+        '#FF008C', '#FF5733', '#FF8C00', '#FFD700', '#FFCE56', '#8CFF00', 
+        '#33FF57', '#00FF8C'
+      ]
 
   return {
-    labels: sortedSubcategoryTimes.map(([subcategory]) => subcategory),
+    labels: sortedSubcategoryTimes.map(([subtask]) => subtask),
     datasets: [
       {
         data: sortedSubcategoryTimes.map(([, time]) => time),
-        backgroundColor: colors,
+        backgroundColor: colors.slice(0, sortedSubcategoryTimes.length),
+      },
+    ],
+  }
+}
+
+// Prepare data for Pie Chart Project Breakdown
+const preparePieDataProject = (data) => {
+  const projectTimes = data.reduce((acc, row) => {
+    acc[row.project] = (acc[row.project] || 0) + parseFloat(row.elapsedTime)
+    return acc
+  }, {})
+
+  const sortedProjectTimes = Object.entries(projectTimes).sort((a, b) => b[1] - a[1])
+
+  const colors = sortedProjectTimes.length <= 6
+    ? ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40']
+    : [
+        '#FF6384', '#FF33A2', '#FF008C', '#FF5733', '#FF8C00', '#FFD700', 
+        '#FFCE56', '#8CFF00', '#33FF57', '#00FF8C', '#4BC0C0', '#00D7FF', 
+        '#36A2EB', '#3357FF', '#008CFF', '#9966FF', '#A233FF', '#8C00FF', 
+        '#33FFA2', '#FF9F40'
+      ]
+
+  return {
+    labels: sortedProjectTimes.map(([project]) => project),
+    datasets: [
+      {
+        data: sortedProjectTimes.map(([, time]) => time),
+        backgroundColor: colors.slice(0, sortedProjectTimes.length),
+      },
+    ],
+  }
+}
+
+// Prepare data for Bar Chart
+const prepareBarData = (data, type, selectedProject, selectedTask) => {
+  let filteredData = data
+  if (type === 'task' && selectedProject) {
+    filteredData = data.filter(row => row.project === selectedProject)
+  } else if (type === 'subtask' && selectedTask) {
+    filteredData = data.filter(row => row.task === selectedTask)
+  }
+
+  const times = filteredData.reduce((acc, row) => {
+    const key = type === 'project' ? row.project : type === 'task' ? row.task : row.subtask
+    acc[key] = (acc[key] || 0) + parseFloat(row.elapsedTime)
+    return acc
+  }, {})
+
+  const sortedTimes = Object.entries(times).sort((a, b) => b[1] - a[1])
+
+  return {
+    labels: sortedTimes.map(([key]) => key),
+    datasets: [
+      {
+        label: 'Elapsed Time (hours)',
+        data: sortedTimes.map(([, time]) => time),
+        backgroundColor: '#36A2EB',
       },
     ],
   }
@@ -122,26 +190,68 @@ const prepareTreeData = (data) => {
     if (!acc[row.task]) {
       acc[row.task] = []
     }
-    acc[row.task].push(row.subcategory)
+    acc[row.task].push(row.subtask)
     return acc
   }, {})
+}
+
+const pieOptions = {
+  plugins: {
+    legend: {
+      position: 'right',
+    },
+    tooltip: {
+      callbacks: {
+        label: function (context) {
+          const label = context.label || ''
+          const value = context.raw || 0
+          return `${label}: ${value.toFixed(2)} hours`
+        },
+      },
+    },
+  },
+}
+
+const barOptions = {
+  plugins: {
+    datalabels: {
+      anchor: 'end',
+      align: 'end',
+      formatter: (value) => value.toFixed(2),
+    },
+  },
+  scales: {
+    y: {
+      beginAtZero: true,
+      title: {
+        display: true,
+        text: 'Elapsed Time (hours)',
+      },
+    },
+  },
 }
 
 function App() {
   const [data, setData] = useState(sampleData)
   const [filteredData, setFilteredData] = useState(sampleData)
-  const [pieDataA, setPieDataA] = useState(preparePieDataA(sampleData))
+  const [pieDataProject, setPieDataProject] = useState(preparePieDataProject(sampleData))
+  const [pieDataA, setPieDataA] = useState(preparePieDataA(sampleData, 'Project A'))
   const [pieDataB, setPieDataB] = useState(preparePieDataB(sampleData, 'Task A'))
+  const [barData, setBarData] = useState(prepareBarData(sampleData, 'project'))
   const [treeData, setTreeData] = useState(prepareTreeData(sampleData))
-  const [selectedTask, setSelectedTask] = useState('')
+  const [selectedProject, setSelectedProject] = useState('Project A')
+  const [selectedTask, setSelectedTask] = useState('Task A')
+  const [barChartType, setBarChartType] = useState('project')
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: new Date(2023, 0, 1),
     to: addDays(new Date(2023, 0, 1), 9),
   })
   const [isExcelUploaded, setIsExcelUploaded] = useState(false)
   const [minimizedCards, setMinimizedCards] = useState({
+    pieChartProject: false,
     pieChartA: false,
     pieChartB: false,
+    barChart: false,
     treeDiagram: false,
     dataTable: false,
   })
@@ -157,7 +267,7 @@ function App() {
         const sheet = workbook.Sheets[sheetName]
         const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 })
         const formattedData = jsonData.slice(1).map(row => {
-          if (isNaN(row[0]) || isNaN(row[3])) {
+          if (isNaN(row[0]) || isNaN(row[5])) {
             console.error('Invalid time value:', row)
             return null
           }
@@ -168,19 +278,24 @@ function App() {
           }
           return {
             date: format(date, 'yyyy/MM/dd'),
-            task: row[1],
-            subcategory: row[2],
-            elapsedTime: convertExcelTime(row[3]),
-            outcome: row[4],
+            project: row[1],
+            task: row[2],
+            subtask: row[3],
+            plan: row[4],
+            elapsedTime: convertExcelTime(row[5]),
+            progress: row[6],
             serialDate: row[0]
           }
         }).filter(row => row !== null)
         setData(formattedData as any)
         setFilteredData(formattedData as any)
-        setPieDataA(preparePieDataA(formattedData))
+        setPieDataProject(preparePieDataProject(formattedData))
+        setPieDataA(preparePieDataA(formattedData, formattedData[0]?.project || 'Project A'))
         setPieDataB(preparePieDataB(formattedData, formattedData[0]?.task || 'Task A'))
+        setBarData(prepareBarData(formattedData, barChartType, selectedProject, selectedTask))
         setTreeData(prepareTreeData(formattedData))
-        setSelectedTask(formattedData[0]?.task || '')
+        setSelectedProject(formattedData[0]?.project || 'Project A')
+        setSelectedTask(formattedData[0]?.task || 'Task A')
         setIsExcelUploaded(true)
 
         const serialDates = formattedData.map(row => row.serialDate).filter(isValid)
@@ -193,8 +308,17 @@ function App() {
   }
 
   useEffect(() => {
+    setPieDataA(preparePieDataA(filteredData, selectedProject))
+    setSelectedTask(filteredData.find(row => row.project === selectedProject)?.task || '')
+  }, [selectedProject, filteredData])
+
+  useEffect(() => {
     setPieDataB(preparePieDataB(filteredData, selectedTask || 'Task A'))
   }, [selectedTask, filteredData])
+
+  useEffect(() => {
+    setBarData(prepareBarData(filteredData, barChartType, selectedProject, selectedTask))
+  }, [filteredData, barChartType, selectedProject, selectedTask])
 
   const handleFilter = () => {
     const dataToFilter = isExcelUploaded ? data : sampleData
@@ -208,12 +332,15 @@ function App() {
         : true
     })
     setFilteredData(filteredData)
-    setPieDataA(preparePieDataA(filteredData))
+    setPieDataProject(preparePieDataProject(filteredData))
+    setPieDataA(preparePieDataA(filteredData, selectedProject))
     setPieDataB(preparePieDataB(filteredData, selectedTask || 'Task A'))
+    setBarData(prepareBarData(filteredData, barChartType, selectedProject, selectedTask))
     setTreeData(prepareTreeData(filteredData))
   }
 
-  const uniqueTasks = Array.from(new Set(data.map(row => row.task)))
+  const uniqueProjects = Array.from(new Set(data.map(row => row.project)))
+  const uniqueTasks = Array.from(new Set(data.filter(row => row.project === selectedProject).map(row => row.task)))
 
   const toggleMinimize = (card) => {
     setMinimizedCards(prevState => ({
@@ -229,24 +356,10 @@ function App() {
       </header>
       <Card className="mb-4">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">Upload Excel File, Select Task & Filter by Date Range</CardTitle>
+          <CardTitle className="text-xl font-semibold">Upload Excel File & Filter by Date Range</CardTitle>
         </CardHeader>
         <CardContent>
           <Input type="file" accept=".xlsx, .xls" onChange={handleFileUpload} className="mb-4" />
-          <div className="mb-4">
-            <Select onValueChange={setSelectedTask}>
-              <SelectTrigger>
-                <span>{selectedTask || 'Select a task'}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {uniqueTasks.map((task, index) => (
-                  <SelectItem key={index} value={task}>
-                    {task}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
           <div className="flex space-x-4">
             <Popover>
               <PopoverTrigger asChild>
@@ -290,31 +403,86 @@ function App() {
       <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Pie Chart A</CardTitle>
+            <CardTitle className="text-xl font-semibold">Project Breakdown</CardTitle>
+            <Button onClick={() => toggleMinimize('pieChartProject')} className="ml-auto">
+              {minimizedCards.pieChartProject ? <Plus size={16} /> : <Minus size={16} />}
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4" style={{ height: '20px' }}></div> {/* Placeholder */}
+            <Pie data={pieDataProject} options={pieOptions} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">Task Breakdown</CardTitle>
             <Button onClick={() => toggleMinimize('pieChartA')} className="ml-auto">
               {minimizedCards.pieChartA ? <Plus size={16} /> : <Minus size={16} />}
             </Button>
           </CardHeader>
-          {!minimizedCards.pieChartA && (
-            <CardContent>
-              <Pie data={pieDataA} />
-            </CardContent>
-          )}
+          <CardContent>
+            <Select onValueChange={setSelectedProject} defaultValue={selectedProject}>
+              <SelectTrigger>
+                <span>{selectedProject || 'Select a project'}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueProjects.map((project, index) => (
+                  <SelectItem key={index} value={project}>
+                    {project}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Pie data={pieDataA} options={pieOptions} />
+          </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-semibold">Pie Chart B</CardTitle>
+            <CardTitle className="text-xl font-semibold">Subtask Breakdown</CardTitle>
             <Button onClick={() => toggleMinimize('pieChartB')} className="ml-auto">
               {minimizedCards.pieChartB ? <Plus size={16} /> : <Minus size={16} />}
             </Button>
           </CardHeader>
-          {!minimizedCards.pieChartB && (
+          <CardContent>
+            <Select onValueChange={setSelectedTask} defaultValue={selectedTask}>
+              <SelectTrigger>
+                <span>{selectedTask || 'Select a task'}</span>
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueTasks.map((task, index) => (
+                  <SelectItem key={index} value={task}>
+                    {task}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Pie data={pieDataB} options={pieOptions} />
+          </CardContent>
+        </Card>
+        <Card className="col-span-1 md:col-span-2 lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold">Elapsed Time Bar Chart</CardTitle>
+            <Button onClick={() => toggleMinimize('barChart')} className="ml-auto">
+              {minimizedCards.barChart ? <Plus size={16} /> : <Minus size={16} />}
+            </Button>
+          </CardHeader>
+          {!minimizedCards.barChart && (
             <CardContent>
-              <Pie data={pieDataB} />
+              <Select onValueChange={setBarChartType} defaultValue={barChartType}>
+                <SelectTrigger>
+                  <span>{barChartType || 'Select a type'}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="project">Project</SelectItem>
+                  <SelectItem value="task">Task</SelectItem>
+                  <SelectItem value="subtask">Subtask</SelectItem>
+                </SelectContent>
+              </Select>
+              <Bar data={barData} options={barOptions} />
             </CardContent>
           )}
         </Card>
-        <Card>
+        <Card className="col-span-1 md:col-span-2 lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Tree Diagram</CardTitle>
             <Button onClick={() => toggleMinimize('treeDiagram')} className="ml-auto">
@@ -360,20 +528,24 @@ function App() {
                 <thead>
                   <tr>
                     <th className="py-2 px-4 border-b">Date</th>
+                    <th className="py-2 px-4 border-b">Project</th>
                     <th className="py-2 px-4 border-b">Task</th>
-                    <th className="py-2 px-4 border-b">Subcategory</th>
+                    <th className="py-2 px-4 border-b">Subtask</th>
+                    <th className="py-2 px-4 border-b">Plan</th>
                     <th className="py-2 px-4 border-b">Elapsed Time</th>
-                    <th className="py-2 px-4 border-b">Outcome</th>
+                    <th className="py-2 px-4 border-b">Progress</th>
                   </tr>
                 </thead>
                 <tbody className="max-h-96 overflow-auto">
                   {filteredData.map((row, index) => (
                     <tr key={index}>
                       <td className="py-2 px-4 border-b">{row.date}</td>
+                      <td className="py-2 px-4 border-b">{row.project}</td>
                       <td className="py-2 px-4 border-b">{row.task}</td>
-                      <td className="py-2 px-4 border-b">{row.subcategory}</td>
-                      <td className="py-2 px-4 border-b">{row.elapsedTime} minutes</td>
-                      <td className="py-2 px-4 border-b">{row.outcome}</td>
+                      <td className="py-2 px-4 border-b">{row.subtask}</td>
+                      <td className="py-2 px-4 border-b">{row.plan}</td>
+                      <td className="py-2 px-4 border-b">{parseFloat(row.elapsedTime).toFixed(2)} hours</td>
+                      <td className="py-2 px-4 border-b">{row.progress}</td>
                     </tr>
                   ))}
                 </tbody>
