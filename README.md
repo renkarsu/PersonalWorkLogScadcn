@@ -3,6 +3,9 @@
 1. npm installコマンドを打つ
 2. npm run devコマンドを打つ
 
+npm install recharts
+npx shadcn@latest add chart 
+
 # React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
