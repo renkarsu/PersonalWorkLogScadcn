@@ -287,7 +287,7 @@ function App() {
               {Object.entries(treeData).map(([task, subcategories], index) => (
                 task !== 'none' && subcategories.filter(sub => sub !== 'none').length > 0 && (
                   <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
-                    {subcategories.filter(sub => sub !== 'none').map((subcategory, subIndex) => (
+                    {Array.from(new Set(subcategories.filter(sub => sub !== 'none'))).map((subcategory, subIndex) => (
                       <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{subcategory}</div>} />
                     ))}
                   </TreeNode>
