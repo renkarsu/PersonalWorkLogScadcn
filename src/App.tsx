@@ -211,8 +211,17 @@ const pieOptions = {
         label: function (context) {
           const label = context.label || ''
           const value = context.raw || 0
-          return `${label}: ${value.toFixed(2)} hours`
+          const total = context.dataset.data.reduce((sum, val) => sum + val, 0)
+          const percentage = ((value / total) * 100).toFixed(2)
+          return `${label}: ${percentage}%`
         },
+      },
+    },
+    datalabels: {
+      formatter: (value, context) => {
+        const total = context.dataset.data.reduce((sum, val) => sum + val, 0)
+        const percentage = ((value / total) * 100).toFixed(2)
+        return `${percentage}%`
       },
     },
   },
