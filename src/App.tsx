@@ -277,7 +277,7 @@ function App() {
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Tree Diagram</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="max-h-96 overflow-auto">
             <Tree
               lineWidth={'2px'}
               lineColor={'#ddd'}
