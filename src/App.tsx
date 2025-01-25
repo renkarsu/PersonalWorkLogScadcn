@@ -285,11 +285,13 @@ function App() {
               label={<div className="bg-gray-200 p-2 rounded">Tasks</div>}
             >
               {Object.entries(treeData).map(([task, subcategories], index) => (
-                <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
-                  {subcategories.map((subcategory, subIndex) => (
-                    <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{subcategory}</div>} />
-                  ))}
-                </TreeNode>
+                task !== 'none' && subcategories.filter(sub => sub !== 'none').length > 0 && (
+                  <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
+                    {subcategories.filter(sub => sub !== 'none').map((subcategory, subIndex) => (
+                      <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{subcategory}</div>} />
+                    ))}
+                  </TreeNode>
+                )
               ))}
             </Tree>
           </CardContent>
