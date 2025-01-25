@@ -186,13 +186,19 @@ const prepareBarData = (data, type, selectedProject, selectedTask) => {
 
 // Prepare data for Tree Diagram
 const prepareTreeData = (data) => {
-  return data.reduce((acc, row) => {
-    if (!acc[row.task]) {
-      acc[row.task] = []
+  const treeData = data.reduce((acc, row) => {
+    if (!acc[row.project]) {
+      acc[row.project] = {}
     }
-    acc[row.task].push(row.subtask)
+    if (!acc[row.project][row.task]) {
+      acc[row.project][row.task] = []
+    }
+    if (!acc[row.project][row.task].includes(row.subtask)) {
+      acc[row.project][row.task].push(row.subtask)
+    }
     return acc
   }, {})
+  return treeData
 }
 
 const pieOptions = {
@@ -495,22 +501,25 @@ function App() {
                 lineWidth={'2px'}
                 lineColor={'#ddd'}
                 lineBorderRadius={'10px'}
-                label={<div className="bg-gray-200 p-2 rounded">Tasks</div>}
+                label={<div className="bg-gray-200 p-2 rounded">Projects</div>}
               >
-                {Object.entries(treeData).map(([task, subcategories], index) => {
-                  const filteredSubcategories = subcategories.filter(sub => sub !== 'none')
-                  return (
-                    (filteredSubcategories.length > 0 || subcategories.every(sub => sub === 'none')) && (
-                      <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
-                        {filteredSubcategories.length > 0
-                          ? Array.from(new Set(filteredSubcategories)).map((subcategory, subIndex) => (
-                              <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{subcategory}</div>} />
-                            ))
-                          : null}
-                      </TreeNode>
-                    )
-                  )
-                })}
+                {Object.entries(treeData).map(([project, tasks], index) => (
+                  <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{project}</div>}>
+                    {Object.entries(tasks).map(([task, subtasks], subIndex) => (
+                      subtasks.length === 1 && subtasks[0] === 'none' ? (
+                        <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{task}</div>} />
+                      ) : (
+                        <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
+                          {subtasks.map((subtask, subSubIndex) => (
+                            subtask !== 'none' && (
+                              <TreeNode key={subSubIndex} label={<div className="bg-gray-200 p-2 rounded">{subtask}</div>} />
+                            )
+                          ))}
+                        </TreeNode>
+                      )
+                    ))}
+                  </TreeNode>
+                ))}
               </Tree>
             </CardContent>
           )}
