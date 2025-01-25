@@ -15,7 +15,7 @@ import {
 } from 'chart.js'
 import * as XLSX from 'xlsx'
 import { format, addDays, isValid } from 'date-fns'
-import { Calendar as CalendarIcon } from 'lucide-react'
+import { Calendar as CalendarIcon, Minus, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DateRange } from 'react-day-picker'
 
@@ -62,16 +62,18 @@ const convertExcelTime = (serial) => {
 
 // Prepare data for Pie Chart A
 const preparePieDataA = (data) => {
-  const taskCounts = data.reduce((acc, row) => {
-    acc[row.task] = (acc[row.task] || 0) + 1
+  const taskTimes = data.reduce((acc, row) => {
+    acc[row.task] = (acc[row.task] || 0) + row.elapsedTime
     return acc
   }, {})
 
+  const sortedTaskTimes = Object.entries(taskTimes).sort((a, b) => b[1] - a[1])
+
   return {
-    labels: Object.keys(taskCounts),
+    labels: sortedTaskTimes.map(([task]) => task),
     datasets: [
       {
-        data: Object.values(taskCounts),
+        data: sortedTaskTimes.map(([, time]) => time),
         backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
       },
     ],
@@ -80,18 +82,20 @@ const preparePieDataA = (data) => {
 
 // Prepare data for Pie Chart B
 const preparePieDataB = (data, selectedTask) => {
-  const subcategoryCounts = data
+  const subcategoryTimes = data
     .filter(row => row.task === selectedTask)
     .reduce((acc, row) => {
-      acc[row.subcategory] = (acc[row.subcategory] || 0) + 1
+      acc[row.subcategory] = (acc[row.subcategory] || 0) + row.elapsedTime
       return acc
     }, {})
 
+  const sortedSubcategoryTimes = Object.entries(subcategoryTimes).sort((a, b) => b[1] - a[1])
+
   return {
-    labels: Object.keys(subcategoryCounts),
+    labels: sortedSubcategoryTimes.map(([subcategory]) => subcategory),
     datasets: [
       {
-        data: Object.values(subcategoryCounts),
+        data: sortedSubcategoryTimes.map(([, time]) => time),
         backgroundColor: ['#4BC0C0', '#9966FF', '#FF9F40'],
       },
     ],
@@ -121,6 +125,12 @@ function App() {
     to: addDays(new Date(2023, 0, 1), 9),
   })
   const [isExcelUploaded, setIsExcelUploaded] = useState(false)
+  const [minimizedCards, setMinimizedCards] = useState({
+    pieChartA: false,
+    pieChartB: false,
+    treeDiagram: false,
+    dataTable: false,
+  })
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -146,7 +156,7 @@ function App() {
             date: format(date, 'yyyy/MM/dd'),
             task: row[1],
             subcategory: row[2],
-            elapsedTime: `${convertExcelTime(row[3])} minutes`,
+            elapsedTime: convertExcelTime(row[3]),
             outcome: row[4],
             serialDate: row[0]
           }
@@ -190,6 +200,13 @@ function App() {
   }
 
   const uniqueTasks = Array.from(new Set(data.map(row => row.task)))
+
+  const toggleMinimize = (card) => {
+    setMinimizedCards(prevState => ({
+      ...prevState,
+      [card]: !prevState[card]
+    }))
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
@@ -260,70 +277,95 @@ function App() {
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Pie Chart A</CardTitle>
+            <Button onClick={() => toggleMinimize('pieChartA')} className="ml-auto">
+              {minimizedCards.pieChartA ? <Plus size={16} /> : <Minus size={16} />}
+            </Button>
           </CardHeader>
-          <CardContent>
-            <Pie data={pieDataA} />
-          </CardContent>
+          {!minimizedCards.pieChartA && (
+            <CardContent>
+              <Pie data={pieDataA} />
+            </CardContent>
+          )}
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Pie Chart B</CardTitle>
+            <Button onClick={() => toggleMinimize('pieChartB')} className="ml-auto">
+              {minimizedCards.pieChartB ? <Plus size={16} /> : <Minus size={16} />}
+            </Button>
           </CardHeader>
-          <CardContent>
-            <Pie data={pieDataB} />
-          </CardContent>
+          {!minimizedCards.pieChartB && (
+            <CardContent>
+              <Pie data={pieDataB} />
+            </CardContent>
+          )}
         </Card>
         <Card>
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Tree Diagram</CardTitle>
+            <Button onClick={() => toggleMinimize('treeDiagram')} className="ml-auto">
+              {minimizedCards.treeDiagram ? <Plus size={16} /> : <Minus size={16} />}
+            </Button>
           </CardHeader>
-          <CardContent className="max-h-96 overflow-auto">
-            <Tree
-              lineWidth={'2px'}
-              lineColor={'#ddd'}
-              lineBorderRadius={'10px'}
-              label={<div className="bg-gray-200 p-2 rounded">Tasks</div>}
-            >
-              {Object.entries(treeData).map(([task, subcategories], index) => (
-                task !== 'none' && subcategories.filter(sub => sub !== 'none').length > 0 && (
-                  <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
-                    {Array.from(new Set(subcategories.filter(sub => sub !== 'none'))).map((subcategory, subIndex) => (
-                      <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{subcategory}</div>} />
-                    ))}
-                  </TreeNode>
-                )
-              ))}
-            </Tree>
-          </CardContent>
+          {!minimizedCards.treeDiagram && (
+            <CardContent className="max-h-96 overflow-auto">
+              <Tree
+                lineWidth={'2px'}
+                lineColor={'#ddd'}
+                lineBorderRadius={'10px'}
+                label={<div className="bg-gray-200 p-2 rounded">Tasks</div>}
+              >
+                {Object.entries(treeData).map(([task, subcategories], index) => {
+                  const filteredSubcategories = subcategories.filter(sub => sub !== 'none')
+                  return (
+                    (filteredSubcategories.length > 0 || subcategories.every(sub => sub === 'none')) && (
+                      <TreeNode key={index} label={<div className="bg-gray-200 p-2 rounded">{task}</div>}>
+                        {filteredSubcategories.length > 0
+                          ? Array.from(new Set(filteredSubcategories)).map((subcategory, subIndex) => (
+                              <TreeNode key={subIndex} label={<div className="bg-gray-200 p-2 rounded">{subcategory}</div>} />
+                            ))
+                          : null}
+                      </TreeNode>
+                    )
+                  )
+                })}
+              </Tree>
+            </CardContent>
+          )}
         </Card>
         <Card className="col-span-1 md:col-span-2 lg:col-span-3">
           <CardHeader>
             <CardTitle className="text-xl font-semibold">Data Table</CardTitle>
+            <Button onClick={() => toggleMinimize('dataTable')} className="ml-auto">
+              {minimizedCards.dataTable ? <Plus size={16} /> : <Minus size={16} />}
+            </Button>
           </CardHeader>
-          <CardContent>
-            <table className="min-w-full bg-white">
-              <thead>
-                <tr>
-                  <th className="py-2 px-4 border-b">Date</th>
-                  <th className="py-2 px-4 border-b">Task</th>
-                  <th className="py-2 px-4 border-b">Subcategory</th>
-                  <th className="py-2 px-4 border-b">Elapsed Time</th>
-                  <th className="py-2 px-4 border-b">Outcome</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((row, index) => (
-                  <tr key={index}>
-                    <td className="py-2 px-4 border-b">{row.date}</td>
-                    <td className="py-2 px-4 border-b">{row.task}</td>
-                    <td className="py-2 px-4 border-b">{row.subcategory}</td>
-                    <td className="py-2 px-4 border-b">{row.elapsedTime}</td>
-                    <td className="py-2 px-4 border-b">{row.outcome}</td>
+          {!minimizedCards.dataTable && (
+            <CardContent className="max-h-96 overflow-auto">
+              <table className="min-w-full bg-white">
+                <thead>
+                  <tr>
+                    <th className="py-2 px-4 border-b">Date</th>
+                    <th className="py-2 px-4 border-b">Task</th>
+                    <th className="py-2 px-4 border-b">Subcategory</th>
+                    <th className="py-2 px-4 border-b">Elapsed Time</th>
+                    <th className="py-2 px-4 border-b">Outcome</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </CardContent>
+                </thead>
+                <tbody className="max-h-96 overflow-auto">
+                  {filteredData.map((row, index) => (
+                    <tr key={index}>
+                      <td className="py-2 px-4 border-b">{row.date}</td>
+                      <td className="py-2 px-4 border-b">{row.task}</td>
+                      <td className="py-2 px-4 border-b">{row.subcategory}</td>
+                      <td className="py-2 px-4 border-b">{row.elapsedTime} minutes</td>
+                      <td className="py-2 px-4 border-b">{row.outcome}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </CardContent>
+          )}
         </Card>
       </main>
     </div>
