@@ -60,6 +60,18 @@ const convertExcelTime = (serial) => {
   return Math.round(serial * 24 * 60)
 }
 
+// Function to generate a list of eye-friendly colors
+const generateColors = (numColors) => {
+  const colors = []
+  for (let i = 0; i < numColors; i++) {
+    const hue = (i * 360 / numColors) % 360
+    const saturation = 70 + (i % 2) * 10 // alternating saturation for variety
+    const lightness = 70 - (i % 2) * 10 // alternating lightness for variety
+    colors.push(`hsl(${hue}, ${saturation}%, ${lightness}%)`)
+  }
+  return colors
+}
+
 // Prepare data for Pie Chart A
 const preparePieDataA = (data) => {
   const taskTimes = data.reduce((acc, row) => {
@@ -68,13 +80,14 @@ const preparePieDataA = (data) => {
   }, {})
 
   const sortedTaskTimes = Object.entries(taskTimes).sort((a, b) => b[1] - a[1])
+  const colors = generateColors(sortedTaskTimes.length)
 
   return {
     labels: sortedTaskTimes.map(([task]) => task),
     datasets: [
       {
         data: sortedTaskTimes.map(([, time]) => time),
-        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56'],
+        backgroundColor: colors,
       },
     ],
   }
@@ -90,13 +103,14 @@ const preparePieDataB = (data, selectedTask) => {
     }, {})
 
   const sortedSubcategoryTimes = Object.entries(subcategoryTimes).sort((a, b) => b[1] - a[1])
+  const colors = generateColors(sortedSubcategoryTimes.length)
 
   return {
     labels: sortedSubcategoryTimes.map(([subcategory]) => subcategory),
     datasets: [
       {
         data: sortedSubcategoryTimes.map(([, time]) => time),
-        backgroundColor: ['#4BC0C0', '#9966FF', '#FF9F40'],
+        backgroundColor: colors,
       },
     ],
   }
